@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Post;
 use App\Category;
+use App\Tag;
 
 class PostController extends Controller
 {
@@ -34,9 +35,11 @@ class PostController extends Controller
     public function create()
     {
         $category = Category::all();
+        $tags = Tag::all();
 
         $data = [
-            'categories' => $category
+            'categories' => $category,
+            'tags' => $tags
         ];
 
         return view('admin.posts.create', $data);
@@ -56,6 +59,11 @@ class PostController extends Controller
         $new_post->fill($form_data);
         $new_post->slug = $this->getUniqueSlugFromTitle($form_data['title']);
         $new_post->save();
+
+        // se l'array dei tag non è vuoto salva i tags
+        if(isset($form_data['tags'])) {
+            $new_post->tags()->sync($form_data['tags']);
+        }
 
         return redirect()->route('admin.posts.show', ['post' => $new_post->id]);
     }
@@ -88,10 +96,12 @@ class PostController extends Controller
     {
         $post_mod = Post::findOrFail($id);
         $category = Category::all();
+        $tags = Tag::all();
 
         $data = [
             'post' => $post_mod,
-            'categories' => $category
+            'categories' => $category,
+            'tags' => $tags
         ];
 
         return view('admin.posts.edit', $data);
@@ -114,6 +124,15 @@ class PostController extends Controller
         }
         $post->update($form_data);
 
+        if(isset($form_data['tags'])) {
+            $post->tags()->sync($form_data['tags']);
+        } else {
+            // Se non esiste la chiave tags in form_data
+            // significa che l'utente a rimosso il check da tutti i tag
+            // quindi se questo post aveva dei tag collegati li rimuovo
+            $post->tags()->sync([]);
+        }
+
         return redirect()->route('admin.posts.show', ['post' => $post->id]);
     }
 
@@ -126,6 +145,7 @@ class PostController extends Controller
     public function destroy($id)
     {
         $post = Post::findOrFail($id);
+        $post->tags()->sync([]);
         $post->delete();
 
         return redirect()->route('admin.posts.index');

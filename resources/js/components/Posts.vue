@@ -12,7 +12,9 @@
                             <h5 class="card-title">{{ post.title }}</h5>
                             <p class="card-text">{{ truncateText(post.content, 50) }}</p>
                         </div>
-                        
+                        <div class="card-body">
+                            <router-link :to="{ name: 'post-details', params: { slug: post.slug } }">Leggi articolo</router-link>
+                        </div>
                     </div>
                 </div>
                 <!-- End Single post card -->

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Post;
 use App\Category;
 use App\Tag;
@@ -58,6 +59,14 @@ class PostController extends Controller
         $new_post = new Post();
         $new_post->fill($form_data);
         $new_post->slug = $this->getUniqueSlugFromTitle($form_data['title']);
+        // Gestione immagine del post
+        if(isset($form_data['image'])) {
+            // 1- Mettere l'immagine caricata nella cartella di Storage
+            $img_path = Storage::put('post_covers', $form_data['image']);
+            // 2- Salvare il path al file nella colonna cover del post
+            $new_post->cover = $img_path;
+        }
+
         $new_post->save();
 
         // se l'array dei tag non è vuoto salva i tags
@@ -122,13 +131,27 @@ class PostController extends Controller
         if($form_data['title'] != $post->title) {
             $form_data['slug'] = $this->getUniqueSlugFromTitle($form_data['title']);
         }
+
+        if($form_data['image']) {
+            // Cancello il file vecchio
+            if($post->cover) {
+                Storage::delete($post->cover);
+            }
+
+            // Faccio l'upload il nuovo file
+            $img_path = Storage::put('post_covers', $form_data['image']);
+
+            // Salvo nella colonna cover il path al nuovo file
+            $form_data['cover'] = $img_path;
+        }
+
         $post->update($form_data);
 
         if(isset($form_data['tags'])) {
             $post->tags()->sync($form_data['tags']);
         } else {
             // Se non esiste la chiave tags in form_data
-            // significa che l'utente a rimosso il check da tutti i tag
+            // significa che l'utente ha rimosso il check da tutti i tag
             // quindi se questo post aveva dei tag collegati li rimuovo
             $post->tags()->sync([]);
         }
@@ -146,6 +169,9 @@ class PostController extends Controller
     {
         $post = Post::findOrFail($id);
         $post->tags()->sync([]);
+        if($post->cover) {
+            Storage::delete($post->cover);
+        }
         $post->delete();
 
         return redirect()->route('admin.posts.index');
